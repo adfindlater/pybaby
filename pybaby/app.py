@@ -28,7 +28,7 @@ def generate(cam):
     while True:
         frame = cam.get_frame()
         time_current = cam.last_access        
-        if (current_time - time_last) > 10.0:
+        if (time_current - time_last) > 10.0:
             fps_last = int(float(n_frames) / (time_current - time_last))
             time_last = time_current
             image_last = image(fps_last, *frame.shape)
