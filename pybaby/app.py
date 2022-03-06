@@ -27,10 +27,9 @@ def generate(cam):
     image_last = image(fps_last, *frame.shape)
     while True:
         frame = cam.get_frame()
-        time_current = cam.last_access        
-        if (time_current - time_last) > 10.0:
-            fps_last = int(float(n_frames) / (time_current - time_last))
-            time_last = time_current
+        if (cam.last_access - time_last) > 10.0:
+            fps_last = int(float(n_frames) / (cam.last_access - time_last))
+            time_last = cam.last_access
             image_last = image(fps_last, *frame.shape)
             # pressure_last, temp_last_0 = bmp.all()  # read both at once
             # temp_last = temp(
