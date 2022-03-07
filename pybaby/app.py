@@ -1,52 +1,53 @@
 from flask import Flask, Response
 from pybaby.models.tcp_camera import TCPCamera
+from pybaby.utils import measure_fps
+from pybaby.sensors.dht11_temp_module import read_dht11_sensor
+from pybaby.sensors.bmp180_pressure_module import read_bmp180_sensor
+from pybaby.sensors.daoki_sound_module import DaokiSoundSensor
 from datetime import datetime
-from sensor import BMP180
-import cv2
 from collections import namedtuple
-            
+import cv2
+
+
 app = Flask(__name__)
 cam = TCPCamera()
-bmp = BMP180(1, 0x77)
+sound = DaokiSoundSensor()
+
 
 def generate(cam):
     frame = cam.get_frame()
-    time_last = cam.last_access
-    temp = namedtuple('Temperature', 'C F K')
-    image = namedtuple('Image', 'FPS H W C')
-    pressure_last, temp_last_0 = bmp.all()  # read both at once
-    temp_last = temp(
-        round(temp_last_0.C, 1),
-        round(temp_last_0.F, 1),
-        round(temp_last_0.K, 1),
-    )
-    datetime_last = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-    alt_last = pressure_last.altitude(msl=1019.303)
-    fps_last = 1
+    fps = 1
     n_frames = 1
-    image_last = image(fps_last, *frame.shape)
+
+    # image_data = image(fps, *frame.shape)    
+    # time_last = cam.last_access
+    # pressure, temp, alt = read_bmp180_sensor()
+    # humidity = read_dht11_sensor()
+    # datetime_now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+    # has_sound = False
+
+    time_last = 0
+    n_frames = 0
+
     while True:
         frame = cam.get_frame()
-        if (cam.last_access - time_last) > 10.0:
-            fps_last = int(float(n_frames) / (cam.last_access - time_last))
-            time_last = cam.last_access
-            image_last = image(fps_last, *frame.shape)
-            # pressure_last, temp_last_0 = bmp.all()  # read both at once
-            # temp_last = temp(
-            #     round(temp_last_0.C, 1),
-            #     round(temp_last_0.F, 1),
-            #     round(temp_last_0.K, 1),
-            # )
-            # alt_last = pressure_last.altitude(msl=1019.303)            
-            datetime_last = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
 
+        if (cam.last_access - time_last) > 2.5:
+            image_data, time_last = measure_fps(cam.last_access, time_last, n_frames, *frame.shape)
+            pressure, temp, alt = read_bmp180_sensor()
+            humidity = read_dht11_sensor()
+            has_sound = sound.poll()
+            datetime_now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")            
             n_frames = 0
 
-        cv2.putText(frame, f"{datetime_last}", (6,15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.putText(frame, f"{temp_last}", (6,31), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.putText(frame, f"{pressure_last}", (6,47), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.putText(frame, f"Altitude(m={round(alt_last.m, 1)}, ft={round(alt_last.ft, 1)})", (6,63), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.putText(frame, f"{image_last}", (6,81), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"PyBaby v1.0.0 {datetime_now}", (6,15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"{temp}", (6,31), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"{pressure}", (6,47), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"Altitude(m={round(alt.m, 1)}, ft={round(alt.ft, 1)})", (6,63), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"{image_data}", (6,81), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"{humidity}", (6,98), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        if has_sound:
+            cv2.putText(frame, f"SOUND DETECTED", (6, 115), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 1, cv2.LINE_AA)
         
         (flag, encodedImage) = cv2.imencode(".jpg", frame)
 

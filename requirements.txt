@@ -3,3 +3,5 @@ Pillow
 flask
 opencv-python
 sensor
+adafruit-circuitpython-dht
+
