@@ -1,16 +1,16 @@
+from pybaby.sensors.base_sensor import BaseSensor
 from sensor import BMP180
 from collections import namedtuple
 
-bmp = BMP180(1, 0x77)
-temperature = namedtuple("Temperature", "C F K")
+altitude_tuple = namedtuple("Elevation", "m ft")
 
+class BMP180PressureSensor(BaseSensor):
+    
+    def __init__(self, channel: int = 14, msl: float = 1019.303):
+        BaseSensor.__init__(self, channel, BMP180(1, 0x77), "all" )
+        self.msl= msl
 
-def read_bmp180_sensor(msl=1019.303):
-    pressure, temp = bmp.all()
-    altitude = pressure.altitude(msl=msl)
-    temp = temperature(
-        round(temp.C, 1),
-        round(temp.F, 1),
-        round(temp.K, 1),
-    )
-    return pressure, temp, altitude
+    def cleanup(self, raw_output):
+        self.pressure, self.temperature = raw_output
+        self.elevation = self.pressure.altitude(self.msl)
+        return self.pressure, self.temperature, self.elevation

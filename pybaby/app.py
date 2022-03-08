@@ -1,9 +1,7 @@
 from flask import Flask, Response
 from pybaby.models.tcp_camera import TCPCamera
 from pybaby.utils import measure_fps
-from pybaby.sensors.dht11_temp_module import read_dht11_sensor
-from pybaby.sensors.bmp180_pressure_module import read_bmp180_sensor
-from pybaby.sensors.daoki_sound_module import DaokiSoundSensor
+from pybaby.sensors import DaokiSoundSensor, DHT11HumiditySensor, BMP180PressureSensor
 from datetime import datetime
 from collections import namedtuple
 import cv2
@@ -11,39 +9,31 @@ import cv2
 
 app = Flask(__name__)
 cam = TCPCamera()
-sound = DaokiSoundSensor()
-
+sound_s = DaokiSoundSensor()
+humidity_s = DHT11HumiditySensor()
+pressure_s = BMP180PressureSensor()
 
 def generate(cam):
     frame = cam.get_frame()
     fps = 1
-    n_frames = 1
-
-    # image_data = image(fps, *frame.shape)    
-    # time_last = cam.last_access
-    # pressure, temp, alt = read_bmp180_sensor()
-    # humidity = read_dht11_sensor()
-    # datetime_now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")
-    # has_sound = False
-
+    n_frames = 1    
     time_last = 0
-    n_frames = 0
 
     while True:
         frame = cam.get_frame()
 
         if (cam.last_access - time_last) > 2.5:
             image_data, time_last = measure_fps(cam.last_access, time_last, n_frames, *frame.shape)
-            pressure, temp, alt = read_bmp180_sensor()
-            humidity = read_dht11_sensor()
-            has_sound = sound.poll()
+            pressure, temp, elevation = pressure_s.poll()
+            humidity = humidity_s.poll()
+            has_sound = sound_s.poll()
             datetime_now = datetime.now().strftime("%m/%d/%Y %H:%M:%S")            
-            n_frames = 0
+            n_frames = 1
 
         cv2.putText(frame, f"PyBaby v1.0.0 {datetime_now}", (6,15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.putText(frame, f"{temp}", (6,31), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.putText(frame, f"{pressure}", (6,47), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
-        cv2.putText(frame, f"Altitude(m={round(alt.m, 1)}, ft={round(alt.ft, 1)})", (6,63), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(frame, f"{elevation}", (6,63), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.putText(frame, f"{image_data}", (6,81), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.putText(frame, f"{humidity}", (6,98), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
         if has_sound:
